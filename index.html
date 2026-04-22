@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+<title>لوحة التحكم المالية - تابلت</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#0f172a;font-family:'Cairo',sans-serif;color:#e2e8f0;padding:16px;padding-bottom:80px;}
+  h2{font-size:22px;margin-bottom:16px;}
+  .kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;}
+  .kpi-card{background:#1e293b;border-radius:16px;padding:16px;border:1px solid #334155;}
+  .kpi-label{font-size:12px;color:#94a3b8;margin-bottom:6px;}
+  .kpi-value{font-size:24px;font-weight:900;}
+  .blue{color:#3b82f6;} .green{color:#10b981;} .red{color:#ef4444;} .gold{color:#f59e0b;}
+  .card{background:#1e293b;border-radius:20px;padding:20px;border:1px solid #334155;margin-bottom:20px;}
+  .card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+  .card-title{font-size:16px;font-weight:700;}
+  .badge{background:#334155;padding:4px 12px;border-radius:20px;font-size:12px;color:#94a3b8;}
+  canvas{max-height:250px;width:100% !important;}
+  .bank-item{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #334155;}
+  .bank-item:last-child{border-bottom:none;}
+  .bank-name{font-size:14px;font-weight:600;}
+  .bank-balance{font-weight:700;}
+  .expense-item{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #334155;}
+  .expense-info{flex:1;}
+  .expense-desc{font-size:14px;font-weight:600;margin-bottom:2px;}
+  .expense-cat{font-size:11px;color:#94a3b8;}
+  .expense-amount{font-size:16px;font-weight:700;color:#ef4444;}
+  button{background:#3b82f6;border:none;color:white;padding:16px;border-radius:16px;font-family:'Cairo';font-size:16px;font-weight:600;width:100%;margin-top:8px;cursor:pointer;}
+  .loading{text-align:center;padding:60px 20px;}
+  .error{color:#ef4444;text-align:center;padding:40px 20px;}
+  .muted{color:#94a3b8;font-size:12px;}
+  .last-update{text-align:center;margin-top:16px;}
+  .divider{height:1px;background:#334155;margin:16px 0;}
+</style>
+</head>
+<body>
+
+<div id="loading" class="loading">
+  <div style="font-size:48px;margin-bottom:16px;">⏳</div>
+  <div style="font-size:18px;margin-bottom:8px;">جاري تحميل البيانات...</div>
+  <div class="muted">يتم الاتصال بـ Google Sheets</div>
+</div>
+
+<div id="error" class="error" style="display:none;">
+  <div style="font-size:48px;margin-bottom:16px;">❌</div>
+  <div style="font-size:18px;margin-bottom:8px;">تعذر تحميل البيانات</div>
+  <div class="muted" id="errorMsg"></div>
+  <button onclick="loadData()" style="margin-top:24px;">إعادة المحاولة</button>
+</div>
+
+<div id="content" style="display:none;">
+  <h2>📊 لوحة المتابعة المالية</h2>
+  
+  <div class="kpi-grid">
+    <div class="kpi-card"><div class="kpi-label">💰 صافي الرصيد</div><div class="kpi-value blue" id="balance">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">📈 الإيرادات</div><div class="kpi-value green" id="revenue">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">📉 المصروفات</div><div class="kpi-value red" id="expenses">—</div></div>
+    <div class="kpi-card"><div class="kpi-label">🏗️ المشاريع</div><div class="kpi-value gold" id="projects">—</div></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">📅 حركة الإيرادات والمصروفات</span>
+      <span class="badge" id="period">—</span>
+    </div>
+    <canvas id="lineChart"></canvas>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">🏦 الحسابات والعهد</span>
+      <span class="badge" id="bankCount">—</span>
+    </div>
+    <div id="banksList"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">📋 أعلى المصروفات</span>
+      <span class="badge">TOP 7</span>
+    </div>
+    <div id="topExpenses"></div>
+  </div>
+
+  <button onclick="loadData()">🔄 تحديث البيانات</button>
+  <div class="last-update muted" id="lastUpdate"></div>
+</div>
+
+<script>
+// الرابط الخاص بك من sheet.best - يعمل بالفعل
+const API_URL = 'https://api.sheetbest.com/sheets/ac14c6b7-d6c1-4a1d-9d12-75f3ba74428b';
+
+let chart = null;
+
+function formatMoney(n) {
+  if (n === null || n === undefined || isNaN(n)) return '—';
+  return Math.round(Number(n)).toLocaleString('ar-EG');
+}
+
+function parseNumber(v) {
+  if (v === '' || v === null || v === undefined) return 0;
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string') {
+    const cleaned = v.replace(/[,،٬\s]/g, '');
+    return parseFloat(cleaned) || 0;
+  }
+  return 0;
+}
+
+async function loadData() {
+  document.getElementById('loading').style.display = 'block';
+  document.getElementById('error').style.display = 'none';
+  document.getElementById('content').style.display = 'none';
+  
+  try {
+    const response = await fetch(API_URL);
+    if (!response.ok) throw new Error(`خطأ ${response.status}`);
+    
+    const data = await response.json();
+    renderDashboard(data);
+    
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('content').style.display = 'block';
+    
+    const now = new Date();
+    document.getElementById('lastUpdate').textContent = 
+      `آخر تحديث: ${now.toLocaleDateString('ar-EG')} ${now.toLocaleTimeString('ar-EG')}`;
+      
+  } catch (error) {
+    console.error(error);
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('error').style.display = 'block';
+    document.getElementById('errorMsg').textContent = error.message;
+  }
+}
+
+function renderDashboard(data) {
+  // تخطي الصف الأول (العناوين)
+  const rows = data.slice(1).filter(r => r[3] && r[3].trim() !== '');
+  
+  let totalRev = 0, totalExp = 0, lastBal = 0, workExp = 0;
+  const dailyMap = new Map();
+  const expenses = [];
+  const bankBalances = new Map();
+
+  rows.forEach(row => {
+    const date = (row[0] || '').split(' ')[0];
+    const desc = row[3] || '';
+    const rev = parseNumber(row['ايرادات'] || row[4] || 0);
+    const exp = parseNumber(row['مصروفات'] || row['اليومية'] || row[5] || 0);
+    const bal = parseNumber(row['الرصيد'] || row[6] || 0);
+    const party = (row['جهة الصرف'] || row[7] || '').trim();
+    const category = (row['مركز التكلفة'] || row[8] || '').trim();
+    const source = (row['المصدر / الجهة'] || row[9] || '').trim();
+
+    totalRev += rev;
+    totalExp += exp;
+    if (bal > 0) lastBal = bal;
+
+    // تصنيف مصروفات العمل
+    if (exp > 0) {
+      if (party === 'عمل') workExp += exp;
+      expenses.push({ desc, amount: exp, category, source });
+    }
+
+    // تجميع الأرصدة حسب المصدر (بنوك + عهد + كاش)
+    if (source && bal > 0) {
+      const currentBal = bankBalances.get(source) || 0;
+      bankBalances.set(source, Math.max(currentBal, bal));
+    }
+
+    // بيانات الرسم البياني اليومي
+    if (date && date.length >= 8) {
+      if (!dailyMap.has(date)) dailyMap.set(date, { rev: 0, exp: 0 });
+      const d = dailyMap.get(date);
+      d.rev += rev;
+      d.exp += exp;
+    }
+  });
+
+  // تحديث KPI
+  document.getElementById('balance').textContent = formatMoney(lastBal);
+  document.getElementById('revenue').textContent = formatMoney(totalRev);
+  document.getElementById('expenses').textContent = formatMoney(totalExp);
+  document.getElementById('projects').textContent = formatMoney(workExp);
+
+  // رسم بياني
+  const dates = Array.from(dailyMap.keys()).sort();
+  const labels = dates.map(d => {
+    const parts = d.split(/[\/\-]/);
+    return parts.length >= 3 ? `${parts[2]}/${parts[1]}` : d;
+  });
+  const revs = dates.map(d => dailyMap.get(d).rev);
+  const exps = dates.map(d => dailyMap.get(d).exp);
+  
+  if (dates.length) {
+    document.getElementById('period').textContent = `${labels[0]} — ${labels[labels.length-1]}`;
+  }
+  
+  const ctx = document.getElementById('lineChart').getContext('2d');
+  if (chart) chart.destroy();
+  
+  chart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        { label: 'إيرادات', data: revs, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', tension: 0.3, fill: true, pointRadius: 3 },
+        { label: 'مصروفات', data: exps, borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)', tension: 0.3, fill: true, pointRadius: 3 }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      plugins: {
+        legend: { labels: { color: '#e2e8f0', font: { family: 'Cairo', size: 12 } } },
+        tooltip: { 
+          callbacks: { 
+            label: (ctx) => `${ctx.dataset.label}: ${formatMoney(ctx.raw)} ج`
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#94a3b8', maxRotation: 45, font: { size: 10 } }, grid: { color: '#334155' } },
+        y: { ticks: { color: '#94a3b8', callback: (v) => v >= 1000 ? (v/1000).toFixed(0) + 'k' : v }, grid: { color: '#334155' } }
+      }
+    }
+  });
+
+  // عرض البنوك والعهد
+  const bankArray = Array.from(bankBalances.entries())
+    .filter(([name]) => name && name !== 'null' && name !== 'undefined')
+    .sort((a, b) => b[1] - a[1]);
+  
+  document.getElementById('bankCount').textContent = `${bankArray.length} حسابات`;
+  
+  document.getElementById('banksList').innerHTML = bankArray.slice(0, 8).map(([name, bal]) => {
+    const icon = name.includes('بنك') ? '🏦' : (name.includes('كاش') ? '📱' : '💵');
+    return `<div class="bank-item">
+      <span class="bank-name">${icon} ${name}</span>
+      <span class="bank-balance" style="color:#3b82f6;">${formatMoney(bal)}</span>
+    </div>`;
+  }).join('') || '<div class="muted" style="padding:12px 0;">لا توجد حسابات</div>';
+
+  // أعلى المصروفات
+  const topExp = expenses
+    .filter(e => e.amount > 0)
+    .sort((a, b) => b.amount - a.amount)
+    .slice(0, 7);
+  
+  document.getElementById('topExpenses').innerHTML = topExp.map((e, i) => `
+    <div class="expense-item">
+      <div class="expense-info">
+        <div class="expense-desc">${i+1}. ${e.desc.substring(0, 40)}${e.desc.length > 40 ? '...' : ''}</div>
+        <div class="expense-cat">${e.category || 'غير محدد'} ${e.source ? '· ' + e.source : ''}</div>
+      </div>
+      <div class="expense-amount">${formatMoney(e.amount)}</div>
+    </div>
+  `).join('') || '<div class="muted" style="padding:12px 0;">لا توجد مصروفات</div>';
+}
+
+// بدء التحميل
+loadData();
+</script>
+</body>
+</html>
