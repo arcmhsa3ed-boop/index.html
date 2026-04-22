@@ -10,6 +10,7 @@
   *{margin:0;padding:0;box-sizing:border-box;}
   body{background:#0f172a;font-family:'Cairo',sans-serif;color:#e2e8f0;padding:16px;padding-bottom:80px;}
   h2{font-size:22px;margin-bottom:16px;}
+  h3{font-size:16px;margin-bottom:12px;color:#94a3b8;}
   .kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;}
   .kpi-card{background:#1e293b;border-radius:16px;padding:16px;border:1px solid #334155;}
   .kpi-label{font-size:12px;color:#94a3b8;margin-bottom:6px;}
@@ -24,6 +25,14 @@
   .bank-item:last-child{border-bottom:none;}
   .bank-name{font-size:14px;font-weight:600;}
   .bank-balance{font-weight:700;font-family:'Cairo',sans-serif;}
+  .cc-item{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #334155;}
+  .cc-item:last-child{border-bottom:none;}
+  .cc-info{flex:1;}
+  .cc-name{font-size:14px;font-weight:600;margin-bottom:2px;}
+  .cc-details{font-size:11px;color:#94a3b8;}
+  .cc-balance{font-size:16px;font-weight:700;font-family:'Cairo',sans-serif;}
+  .cc-positive{color:#10b981;}
+  .cc-negative{color:#ef4444;}
   .expense-item{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #334155;}
   .expense-info{flex:1;}
   .expense-desc{font-size:14px;font-weight:600;margin-bottom:2px;}
@@ -34,7 +43,10 @@
   .error{color:#ef4444;text-align:center;padding:40px 20px;}
   .muted{color:#94a3b8;font-size:12px;}
   .last-update{text-align:center;margin-top:16px;}
-  .divider{height:1px;background:#334155;margin:16px 0;}
+  .two-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+  @media(max-width:600px){
+    .two-cols{grid-template-columns:1fr;}
+  }
 </style>
 </head>
 <body>
@@ -70,12 +82,25 @@
     <canvas id="lineChart"></canvas>
   </div>
 
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title">🏦 الحسابات والعهد</span>
-      <span class="badge" id="bankCount">—</span>
+  <!-- قسمين جنب بعض: الحسابات البنكية + مراكز التكلفة -->
+  <div class="two-cols">
+    <!-- الحسابات البنكية والعهد -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">🏦 الحسابات والعهد</span>
+        <span class="badge" id="bankCount">—</span>
+      </div>
+      <div id="banksList"></div>
     </div>
-    <div id="banksList"></div>
+
+    <!-- مراكز التكلفة (Cost Centers) -->
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">🎯 مراكز التكلفة</span>
+        <span class="badge" id="ccCount">—</span>
+      </div>
+      <div id="ccList"></div>
+    </div>
   </div>
 
   <div class="card">
@@ -91,16 +116,12 @@
 </div>
 
 <script>
-// الرابط الخاص بك من sheet.best - يعمل بالفعل
 const API_URL = 'https://api.sheetbest.com/sheets/ac14c6b7-d6c1-4a1d-9d12-75f3ba74428b';
-
 let chart = null;
 
-// دالة تنسيق الأرقام بالإنجليزية
 function formatMoney(n) {
   if (n === null || n === undefined || isNaN(n)) return '—';
   const num = Math.round(Number(n));
-  // استخدام toLocaleString مع 'en-US' للأرقام الإنجليزية
   return num.toLocaleString('en-US');
 }
 
@@ -108,20 +129,18 @@ function parseNumber(v) {
   if (v === '' || v === null || v === undefined) return 0;
   if (typeof v === 'number') return v;
   if (typeof v === 'string') {
-    // إزالة الفواصل والمسافات العربية والإنجليزية
     const cleaned = v.replace(/[,،٬\s]/g, '');
     return parseFloat(cleaned) || 0;
   }
   return 0;
 }
 
-// دالة تنسيق التاريخ بالأرقام الإنجليزية
 function formatDateArabic(date) {
   const options = { 
     year: 'numeric', 
     month: 'long', 
     day: 'numeric',
-    numberingSystem: 'latn'  // هذا يجعل الأرقام إنجليزية
+    numberingSystem: 'latn'
   };
   return date.toLocaleDateString('ar-EG', options);
 }
@@ -130,7 +149,7 @@ function formatTimeArabic(date) {
   const options = { 
     hour: '2-digit', 
     minute: '2-digit',
-    numberingSystem: 'latn',  // هذا يجعل الأرقام إنجليزية
+    numberingSystem: 'latn',
     hour12: true
   };
   return date.toLocaleTimeString('ar-EG', options);
@@ -164,13 +183,15 @@ async function loadData() {
 }
 
 function renderDashboard(data) {
-  // تخطي الصف الأول (العناوين)
   const rows = data.slice(1).filter(r => r[3] && r[3].trim() !== '');
   
   let totalRev = 0, totalExp = 0, lastBal = 0, workExp = 0;
   const dailyMap = new Map();
   const expenses = [];
   const bankBalances = new Map();
+  
+  // متغيرات جديدة لمراكز التكلفة
+  const costCenters = new Map(); // name -> { rev: 0, exp: 0 }
 
   rows.forEach(row => {
     const date = (row[0] || '').split(' ')[0];
@@ -186,19 +207,26 @@ function renderDashboard(data) {
     totalExp += exp;
     if (bal > 0) lastBal = bal;
 
-    // تصنيف مصروفات العمل
+    // تجميع مراكز التكلفة
+    if (category && category !== '' && category !== 'غير محدد') {
+      if (!costCenters.has(category)) {
+        costCenters.set(category, { rev: 0, exp: 0 });
+      }
+      const cc = costCenters.get(category);
+      cc.rev += rev;
+      cc.exp += exp;
+    }
+
     if (exp > 0) {
       if (party === 'عمل') workExp += exp;
       expenses.push({ desc, amount: exp, category, source });
     }
 
-    // تجميع الأرصدة حسب المصدر (بنوك + عهد + كاش)
     if (source && bal > 0) {
       const currentBal = bankBalances.get(source) || 0;
       bankBalances.set(source, Math.max(currentBal, bal));
     }
 
-    // بيانات الرسم البياني اليومي
     if (date && date.length >= 8) {
       if (!dailyMap.has(date)) dailyMap.set(date, { rev: 0, exp: 0 });
       const d = dailyMap.get(date);
@@ -218,7 +246,6 @@ function renderDashboard(data) {
   const labels = dates.map(d => {
     const parts = d.split(/[\/\-]/);
     if (parts.length >= 3) {
-      // تنسيق التاريخ بأرقام إنجليزية
       return `${parts[2]}/${parts[1]}`;
     }
     return d;
@@ -283,13 +310,41 @@ function renderDashboard(data) {
   
   document.getElementById('bankCount').textContent = `${bankArray.length} حسابات`;
   
-  document.getElementById('banksList').innerHTML = bankArray.slice(0, 8).map(([name, bal]) => {
+  document.getElementById('banksList').innerHTML = bankArray.slice(0, 6).map(([name, bal]) => {
     const icon = name.includes('بنك') ? '🏦' : (name.includes('كاش') ? '📱' : '💵');
     return `<div class="bank-item">
       <span class="bank-name">${icon} ${name}</span>
       <span class="bank-balance" style="color:#3b82f6;">${formatMoney(bal)}</span>
     </div>`;
   }).join('') || '<div class="muted" style="padding:12px 0;">لا توجد حسابات</div>';
+
+  // عرض مراكز التكلفة
+  const ccArray = Array.from(costCenters.entries())
+    .filter(([name]) => name && name !== 'null' && name !== 'undefined' && name !== 'مصروفات بنكية')
+    .map(([name, data]) => ({
+      name,
+      rev: data.rev,
+      exp: data.exp,
+      net: data.rev - data.exp
+    }))
+    .filter(cc => cc.rev > 0 || cc.exp > 0)
+    .sort((a, b) => Math.abs(b.net) - Math.abs(a.net));
+  
+  document.getElementById('ccCount').textContent = `${ccArray.length} مشروع`;
+  
+  document.getElementById('ccList').innerHTML = ccArray.slice(0, 6).map(cc => {
+    const isPositive = cc.net >= 0;
+    const sign = isPositive ? '+' : '';
+    const colorClass = isPositive ? 'cc-positive' : 'cc-negative';
+    
+    return `<div class="cc-item">
+      <div class="cc-info">
+        <div class="cc-name">📁 ${cc.name}</div>
+        <div class="cc-details">إيرادات: ${formatMoney(cc.rev)} · مصروفات: ${formatMoney(cc.exp)}</div>
+      </div>
+      <div class="cc-balance ${colorClass}">${sign}${formatMoney(cc.net)}</div>
+    </div>`;
+  }).join('') || '<div class="muted" style="padding:12px 0;">لا توجد مراكز تكلفة</div>';
 
   // أعلى المصروفات
   const topExp = expenses
@@ -308,10 +363,7 @@ function renderDashboard(data) {
   `).join('') || '<div class="muted" style="padding:12px 0;">لا توجد مصروفات</div>';
 }
 
-// بدء التحميل
 loadData();
-
-// تحديث تلقائي كل 5 دقائق
 setInterval(loadData, 5 * 60 * 1000);
 </script>
 </body>
