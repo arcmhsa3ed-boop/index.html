@@ -2,369 +2,471 @@
 <html lang="ar" dir="rtl">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
-<title>لوحة التحكم المالية - تابلت</title>
-<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;900&display=swap" rel="stylesheet">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>لوحة التحكم المالية</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Tajawal:wght@300;400;500;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
+  :root {
+    --bg:#0a0e1a; --card:#131929; --card2:#1a2236;
+    --border:rgba(99,179,237,0.12);
+    --accent:#38bdf8; --accent2:#818cf8;
+    --gold:#f59e0b; --green:#34d399; --red:#f87171; --orange:#fb923c;
+    --text:#e2e8f0; --muted:#64748b;
+  }
   *{margin:0;padding:0;box-sizing:border-box;}
-  body{background:#0f172a;font-family:'Cairo',sans-serif;color:#e2e8f0;padding:16px;padding-bottom:80px;}
-  h2{font-size:22px;margin-bottom:16px;}
-  h3{font-size:16px;margin-bottom:12px;color:#94a3b8;}
-  .kpi-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;}
-  .kpi-card{background:#1e293b;border-radius:16px;padding:16px;border:1px solid #334155;}
-  .kpi-label{font-size:12px;color:#94a3b8;margin-bottom:6px;}
-  .kpi-value{font-size:24px;font-weight:900;font-family:'Cairo',sans-serif;}
-  .blue{color:#3b82f6;} .green{color:#10b981;} .red{color:#ef4444;} .gold{color:#f59e0b;}
-  .card{background:#1e293b;border-radius:20px;padding:20px;border:1px solid #334155;margin-bottom:20px;}
-  .card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
-  .card-title{font-size:16px;font-weight:700;}
-  .badge{background:#334155;padding:4px 12px;border-radius:20px;font-size:12px;color:#94a3b8;}
-  canvas{max-height:250px;width:100% !important;}
-  .bank-item{display:flex;justify-content:space-between;padding:12px 0;border-bottom:1px solid #334155;}
+  body{background:var(--bg);font-family:'Cairo',sans-serif;color:var(--text);min-height:100vh;direction:rtl;}
+  body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(56,189,248,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(56,189,248,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
+
+  #loading{position:fixed;inset:0;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;z-index:999;gap:20px;}
+  .spinner{width:50px;height:50px;border:3px solid rgba(56,189,248,0.1);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .loading-text{color:var(--muted);font-size:14px;font-family:'Tajawal';}
+  .loading-sub{color:rgba(100,116,139,0.5);font-size:11px;font-family:'Tajawal';}
+
+  #error-screen{display:none;position:fixed;inset:0;background:var(--bg);align-items:center;justify-content:center;flex-direction:column;gap:16px;z-index:999;}
+  .error-icon{font-size:48px;}
+  .error-title{font-size:18px;font-weight:700;color:var(--red);}
+  .error-msg{font-size:13px;color:var(--muted);font-family:'Tajawal';text-align:center;max-width:420px;line-height:1.9;padding:0 20px;}
+  .retry-btn{background:rgba(56,189,248,0.1);border:1px solid var(--accent);color:var(--accent);padding:10px 28px;border-radius:8px;cursor:pointer;font-family:'Cairo';font-size:13px;}
+  .retry-btn:hover{background:rgba(56,189,248,0.2);}
+
+  .container{max-width:1400px;margin:0 auto;padding:28px 24px;position:relative;z-index:1;}
+
+  header{display:flex;justify-content:space-between;align-items:center;margin-bottom:32px;padding-bottom:20px;border-bottom:1px solid var(--border);flex-wrap:wrap;gap:12px;}
+  .header-title h1{font-size:24px;font-weight:900;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+  .header-title p{font-size:12px;color:var(--muted);font-family:'Tajawal';margin-top:3px;}
+  .header-right{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+  .live-badge{display:flex;align-items:center;gap:8px;background:var(--card2);border:1px solid var(--border);padding:8px 16px;border-radius:20px;font-size:12px;color:var(--accent);}
+  .live-dot{width:7px;height:7px;border-radius:50%;background:var(--green);animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.5;transform:scale(1.3)}}
+  .refresh-btn{background:rgba(56,189,248,0.08);border:1px solid var(--border);color:var(--accent);padding:8px 16px;border-radius:20px;cursor:pointer;font-family:'Cairo';font-size:12px;display:flex;align-items:center;gap:6px;transition:background .2s;}
+  .refresh-btn:hover{background:rgba(56,189,248,0.18);}
+  .spin{animation:spin 0.8s linear infinite;display:inline-block;}
+
+  .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
+  .kpi-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:22px 20px;position:relative;overflow:hidden;transition:transform .2s;}
+  .kpi-card:hover{transform:translateY(-3px);}
+  .kpi-card::after{content:'';position:absolute;top:0;right:0;width:60px;height:60px;border-radius:50%;filter:blur(30px);opacity:.3;}
+  .kpi-card.blue::after{background:var(--accent);}
+  .kpi-card.green::after{background:var(--green);}
+  .kpi-card.red::after{background:var(--red);}
+  .kpi-card.gold::after{background:var(--gold);}
+  .kpi-label{font-size:11px;color:var(--muted);font-family:'Tajawal';margin-bottom:10px;}
+  .kpi-value{font-size:26px;font-weight:900;line-height:1;margin-bottom:6px;}
+  .kpi-card.blue .kpi-value{color:var(--accent);}
+  .kpi-card.green .kpi-value{color:var(--green);}
+  .kpi-card.red .kpi-value{color:var(--red);}
+  .kpi-card.gold .kpi-value{color:var(--gold);}
+  .kpi-sub{font-size:11px;color:var(--muted);}
+  .kpi-icon{position:absolute;top:18px;left:18px;font-size:22px;opacity:.6;}
+
+  .main-grid{display:grid;grid-template-columns:1fr 380px;gap:20px;margin-bottom:20px;}
+  .chart-card{background:var(--card);border:1px solid var(--border);border-radius:16px;padding:24px;animation:fadeUp .4s ease both;}
+  .card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
+  .card-title{font-size:14px;font-weight:700;}
+  .card-subtitle{font-size:11px;color:var(--muted);font-family:'Tajawal';margin-top:2px;}
+  .tag{font-size:10px;padding:4px 10px;border-radius:20px;font-family:'Tajawal';}
+  .tag-blue{background:rgba(56,189,248,0.1);color:var(--accent);}
+  .tag-green{background:rgba(52,211,153,0.1);color:var(--green);}
+  .tag-orange{background:rgba(251,146,60,0.1);color:var(--orange);}
+  .accent-line{width:30px;height:3px;border-radius:2px;background:linear-gradient(90deg,var(--accent),var(--accent2));margin-bottom:14px;}
+
+  .bank-item{display:flex;align-items:center;justify-content:space-between;padding:11px 0;border-bottom:1px solid rgba(255,255,255,0.04);}
   .bank-item:last-child{border-bottom:none;}
-  .bank-name{font-size:14px;font-weight:600;}
-  .bank-balance{font-weight:700;font-family:'Cairo',sans-serif;}
-  .cc-item{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #334155;}
+  .bank-info{display:flex;align-items:center;gap:10px;}
+  .bank-icon{width:34px;height:34px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0;}
+  .bank-name{font-size:12px;font-weight:600;}
+  .bank-type{font-size:10px;color:var(--muted);font-family:'Tajawal';}
+  .bank-bar-wrap{margin-top:4px;width:70px;height:3px;background:rgba(255,255,255,0.06);border-radius:2px;overflow:hidden;}
+  .bank-bar-fill{height:100%;border-radius:2px;transition:width .8s ease;}
+
+  .bottom-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:20px;}
+  .cc-item{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid rgba(255,255,255,0.04);}
   .cc-item:last-child{border-bottom:none;}
-  .cc-info{flex:1;}
-  .cc-name{font-size:14px;font-weight:600;margin-bottom:2px;}
-  .cc-details{font-size:11px;color:#94a3b8;}
-  .cc-balance{font-size:16px;font-weight:700;font-family:'Cairo',sans-serif;}
-  .cc-positive{color:#10b981;}
-  .cc-negative{color:#ef4444;}
-  .expense-item{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid #334155;}
-  .expense-info{flex:1;}
-  .expense-desc{font-size:14px;font-weight:600;margin-bottom:2px;}
-  .expense-cat{font-size:11px;color:#94a3b8;}
-  .expense-amount{font-size:16px;font-weight:700;color:#ef4444;font-family:'Cairo',sans-serif;}
-  button{background:#3b82f6;border:none;color:white;padding:16px;border-radius:16px;font-family:'Cairo';font-size:16px;font-weight:600;width:100%;margin-top:8px;cursor:pointer;}
-  .loading{text-align:center;padding:60px 20px;}
-  .error{color:#ef4444;text-align:center;padding:40px 20px;}
-  .muted{color:#94a3b8;font-size:12px;}
-  .last-update{text-align:center;margin-top:16px;}
-  .two-cols{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-  @media(max-width:600px){
-    .two-cols{grid-template-columns:1fr;}
+  .cc-left{display:flex;align-items:center;gap:8px;}
+  .cc-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .cc-name{font-size:12px;}
+  .cc-balance{font-size:12px;font-weight:700;}
+  .pos{color:var(--green);}
+  .neg{color:var(--red);}
+
+  .exp-item{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.04);}
+  .exp-item:last-child{border-bottom:none;}
+  .exp-rank{font-size:10px;color:var(--muted);width:16px;text-align:center;flex-shrink:0;}
+  .exp-info{flex:1;min-width:0;}
+  .exp-name{font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .exp-cat{font-size:10px;color:var(--muted);font-family:'Tajawal';}
+  .exp-amt{font-size:12px;font-weight:700;color:var(--red);flex-shrink:0;}
+
+  .donut-legend{display:flex;flex-direction:column;gap:8px;margin-top:16px;}
+  .leg-item{display:flex;align-items:center;justify-content:space-between;}
+  .leg-left{display:flex;align-items:center;gap:8px;}
+  .leg-dot{width:10px;height:10px;border-radius:3px;flex-shrink:0;}
+  .leg-name{font-size:11px;color:var(--muted);font-family:'Tajawal';}
+  .leg-val{font-size:11px;font-weight:700;}
+
+  @keyframes fadeUp{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:translateY(0)}}
+  ::-webkit-scrollbar{width:4px;}
+  ::-webkit-scrollbar-track{background:var(--bg);}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+
+  @media(max-width:1100px){
+    .kpi-grid{grid-template-columns:repeat(2,1fr);}
+    .main-grid{grid-template-columns:1fr;}
+    .bottom-grid{grid-template-columns:1fr;}
   }
 </style>
 </head>
 <body>
 
-<div id="loading" class="loading">
-  <div style="font-size:48px;margin-bottom:16px;">⏳</div>
-  <div style="font-size:18px;margin-bottom:8px;">جاري تحميل البيانات...</div>
-  <div class="muted">يتم الاتصال بـ Google Sheets</div>
+<div id="loading">
+  <div class="spinner"></div>
+  <div class="loading-text">جاري تحميل البيانات من Google Sheets...</div>
+  <div class="loading-sub">متصل عبر SheetBest API</div>
 </div>
 
-<div id="error" class="error" style="display:none;">
-  <div style="font-size:48px;margin-bottom:16px;">❌</div>
-  <div style="font-size:18px;margin-bottom:8px;">تعذر تحميل البيانات</div>
-  <div class="muted" id="errorMsg"></div>
-  <button onclick="loadData()" style="margin-top:24px;">إعادة المحاولة</button>
+<div id="error-screen">
+  <div class="error-icon">⚠️</div>
+  <div class="error-title">تعذّر تحميل البيانات</div>
+  <div class="error-msg" id="error-msg">حدث خطأ في الاتصال بـ SheetBest API</div>
+  <button class="retry-btn" onclick="loadAll()">🔄 إعادة المحاولة</button>
 </div>
 
-<div id="content" style="display:none;">
-  <h2>📊 لوحة المتابعة المالية</h2>
-  
+<div class="container" id="app" style="display:none">
+  <header>
+    <div class="header-title">
+      <h1>📊 لوحة المتابعة المالية</h1>
+      <p id="ts">جاري التحميل...</p>
+    </div>
+    <div class="header-right">
+      <div class="live-badge"><div class="live-dot"></div><span>مرتبط بـ Google Sheets</span></div>
+      <button class="refresh-btn" id="rbtn" onclick="loadAll()"><span id="ri">🔄</span> تحديث</button>
+    </div>
+  </header>
+
   <div class="kpi-grid">
-    <div class="kpi-card"><div class="kpi-label">💰 صافي الرصيد</div><div class="kpi-value blue" id="balance">—</div></div>
-    <div class="kpi-card"><div class="kpi-label">📈 الإيرادات</div><div class="kpi-value green" id="revenue">—</div></div>
-    <div class="kpi-card"><div class="kpi-label">📉 المصروفات</div><div class="kpi-value red" id="expenses">—</div></div>
-    <div class="kpi-card"><div class="kpi-label">🏗️ المشاريع</div><div class="kpi-value gold" id="projects">—</div></div>
+    <div class="kpi-card blue"><div class="kpi-icon">💰</div><div class="kpi-label">صافي الرصيد الكلي</div><div class="kpi-value" id="k-bal">—</div><div class="kpi-sub">جنيه مصري</div></div>
+    <div class="kpi-card green"><div class="kpi-icon">📈</div><div class="kpi-label">إجمالي الإيرادات</div><div class="kpi-value" id="k-rev">—</div><div class="kpi-sub">خلال الفترة</div></div>
+    <div class="kpi-card red"><div class="kpi-icon">📉</div><div class="kpi-label">إجمالي المصروفات</div><div class="kpi-value" id="k-exp">—</div><div class="kpi-sub">خلال الفترة</div></div>
+    <div class="kpi-card gold"><div class="kpi-icon">🏗️</div><div class="kpi-label">مصروفات المشاريع</div><div class="kpi-value" id="k-prj">—</div><div class="kpi-sub">من إجمالي المصروفات</div></div>
   </div>
 
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title">📅 حركة الإيرادات والمصروفات</span>
-      <span class="badge" id="period">—</span>
-    </div>
-    <canvas id="lineChart"></canvas>
-  </div>
-
-  <!-- قسمين جنب بعض: الحسابات البنكية + مراكز التكلفة -->
-  <div class="two-cols">
-    <!-- الحسابات البنكية والعهد -->
-    <div class="card">
+  <div class="main-grid">
+    <div class="chart-card">
       <div class="card-header">
-        <span class="card-title">🏦 الحسابات والعهد</span>
-        <span class="badge" id="bankCount">—</span>
+        <div><div class="card-title">حركة الإيرادات والمصروفات اليومية</div><div class="card-subtitle" id="c-period">—</div></div>
+        <span class="tag tag-blue">يومي</span>
       </div>
-      <div id="banksList"></div>
+      <canvas id="lineChart" height="220"></canvas>
     </div>
-
-    <!-- مراكز التكلفة (Cost Centers) -->
-    <div class="card">
+    <div class="chart-card">
       <div class="card-header">
-        <span class="card-title">🎯 مراكز التكلفة</span>
-        <span class="badge" id="ccCount">—</span>
+        <div><div class="card-title">الحسابات البنكية</div><div class="card-subtitle">الرصيد الحالي</div></div>
+        <span class="tag tag-green" id="b-count">—</span>
       </div>
-      <div id="ccList"></div>
+      <div id="banks"></div>
     </div>
   </div>
 
-  <div class="card">
-    <div class="card-header">
-      <span class="card-title">📋 أعلى المصروفات</span>
-      <span class="badge">TOP 7</span>
+  <div class="bottom-grid">
+    <div class="chart-card">
+      <div class="card-header"><div><div class="card-title">مراكز التكلفة</div><div class="card-subtitle">صافي كل مشروع</div></div><span class="tag tag-orange">المشاريع</span></div>
+      <div class="accent-line"></div><div id="cc"></div>
     </div>
-    <div id="topExpenses"></div>
+    <div class="chart-card">
+      <div class="card-header"><div><div class="card-title">توزيع المصروفات</div><div class="card-subtitle">شخصي مقابل عمل</div></div><span class="tag tag-blue">%</span></div>
+      <canvas id="donutChart" height="170"></canvas>
+      <div class="donut-legend" id="dleg"></div>
+    </div>
+    <div class="chart-card">
+      <div class="card-header"><div><div class="card-title">أكبر المصروفات</div><div class="card-subtitle">أعلى 7 بنود صرف</div></div><span class="tag tag-orange">TOP 7</span></div>
+      <div class="accent-line"></div><div id="topexp"></div>
+    </div>
   </div>
-
-  <button onclick="loadData()">🔄 تحديث البيانات</button>
-  <div class="last-update muted" id="lastUpdate"></div>
 </div>
 
 <script>
-const API_URL = 'https://api.sheetbest.com/sheets/ac14c6b7-d6c1-4a1d-9d12-75f3ba74428b';
-let chart = null;
+// ─── SheetBest API endpoints ───────────────────────────────────────────────
+const BASE = 'https://api.sheetbest.com/sheets/ac14c6b7-d6c1-4a1d-9d12-75f3ba74428b';
+const API = {
+  daily: `${BASE}/tabs/Daily%20%F0%9F%8E%AF`,
+  bank:  `${BASE}/tabs/Bank%20%F0%9F%8F%9B%EF%B8%8F`,
+  cost:  `${BASE}/tabs/Cost%20Center%20%E2%9A%A0%EF%B8%8F`,
+};
 
-function formatMoney(n) {
-  if (n === null || n === undefined || isNaN(n)) return '—';
-  const num = Math.round(Number(n));
-  return num.toLocaleString('en-US');
+let lineInst = null, donutInst = null;
+
+function fmt(n) {
+  if (n === '' || n == null || isNaN(+n)) return '—';
+  return Math.round(+n).toLocaleString('ar-EG');
 }
 
-function parseNumber(v) {
-  if (v === '' || v === null || v === undefined) return 0;
+function num(v) {
+  if (v == null || v === '') return 0;
   if (typeof v === 'number') return v;
-  if (typeof v === 'string') {
-    const cleaned = v.replace(/[,،٬\s]/g, '');
-    return parseFloat(cleaned) || 0;
-  }
-  return 0;
+  // Handle Arabic numerals and separators like ١٬٢٣٤ or 1,234
+  return parseFloat(String(v).replace(/[,،٬٫\s]/g,'').replace(/[\u0660-\u0669]/g, d => d.charCodeAt(0)-0x660)) || 0;
 }
 
-function formatDateArabic(date) {
-  const options = { 
-    year: 'numeric', 
-    month: 'long', 
-    day: 'numeric',
-    numberingSystem: 'latn'
-  };
-  return date.toLocaleDateString('ar-EG', options);
+async function apiFetch(url) {
+  const r = await fetch(url);
+  if (!r.ok) throw new Error(`HTTP ${r.status} — ${url}`);
+  return r.json();
 }
 
-function formatTimeArabic(date) {
-  const options = { 
-    hour: '2-digit', 
-    minute: '2-digit',
-    numberingSystem: 'latn',
-    hour12: true
-  };
-  return date.toLocaleTimeString('ar-EG', options);
-}
-
-async function loadData() {
-  document.getElementById('loading').style.display = 'block';
-  document.getElementById('error').style.display = 'none';
-  document.getElementById('content').style.display = 'none';
-  
+async function loadAll() {
+  document.getElementById('ri').classList.add('spin');
   try {
-    const response = await fetch(API_URL);
-    if (!response.ok) throw new Error(`خطأ ${response.status}`);
-    
-    const data = await response.json();
-    renderDashboard(data);
-    
+    // Try fetching all three tabs; fall back gracefully if tabs endpoint differs
+    let daily, bank, cost;
+    try {
+      [daily, bank, cost] = await Promise.all([
+        apiFetch(API.daily),
+        apiFetch(API.bank),
+        apiFetch(API.cost),
+      ]);
+    } catch {
+      // SheetBest free plan may only expose default sheet — fetch all and filter
+      const all = await apiFetch(BASE);
+      daily = all;
+      bank = [];
+      cost = [];
+    }
+
+    process(daily, bank, cost);
+
     document.getElementById('loading').style.display = 'none';
-    document.getElementById('content').style.display = 'block';
-    
+    document.getElementById('error-screen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
     const now = new Date();
-    document.getElementById('lastUpdate').textContent = 
-      `آخر تحديث: ${formatDateArabic(now)} ${formatTimeArabic(now)}`;
-      
-  } catch (error) {
-    console.error(error);
+    document.getElementById('ts').textContent =
+      `آخر تحديث: ${now.toLocaleDateString('ar-EG')} — ${now.toLocaleTimeString('ar-EG',{hour:'2-digit',minute:'2-digit'})}`;
+  } catch(e) {
+    console.error(e);
     document.getElementById('loading').style.display = 'none';
-    document.getElementById('error').style.display = 'block';
-    document.getElementById('errorMsg').textContent = error.message;
+    document.getElementById('error-screen').style.display = 'flex';
+    document.getElementById('error-msg').textContent = `خطأ: ${e.message}`;
+  } finally {
+    document.getElementById('ri').classList.remove('spin');
   }
 }
 
-function renderDashboard(data) {
-  const rows = data.slice(1).filter(r => r[3] && r[3].trim() !== '');
-  
-  let totalRev = 0, totalExp = 0, lastBal = 0, workExp = 0;
-  const dailyMap = new Map();
-  const expenses = [];
-  const bankBalances = new Map();
-  
-  // متغيرات جديدة لمراكز التكلفة
-  const costCenters = new Map(); // name -> { rev: 0, exp: 0 }
+function process(daily, bank, cost) {
+  // ── Daily rows ──
+  // SheetBest returns first row as keys; the header row itself is the first object
+  // Filter out the header object (where keys equal values) and empty rows
+  const rows = daily.filter(r => {
+    const m = r['2'] || r['م'] || r[2];
+    return m && m !== 'م' && m !== '' && !isNaN(+m);
+  });
 
-  rows.forEach(row => {
-    const date = (row[0] || '').split(' ')[0];
-    const desc = row[3] || '';
-    const rev = parseNumber(row['ايرادات'] || row[4] || 0);
-    const exp = parseNumber(row['مصروفات'] || row['اليومية'] || row[5] || 0);
-    const bal = parseNumber(row['الرصيد'] || row[6] || 0);
-    const party = (row['جهة الصرف'] || row[7] || '').trim();
-    const category = (row['مركز التكلفة'] || row[8] || '').trim();
-    const source = (row['المصدر / الجهة'] || row[9] || '').trim();
+  let totRev=0, totExp=0, lastBal=0, workExp=0, persExp=0;
+  const dayMap = {};
+  const allExp = [];
 
-    totalRev += rev;
-    totalExp += exp;
-    if (bal > 0) lastBal = bal;
+  rows.forEach(r => {
+    // SheetBest uses column index as key ("0","1",...) or column header
+    const date  = String(r['0'] || r['التاريخ'] || '').trim();
+    const rev   = num(r['4'] || r['ايرادات'] || 0);
+    const exp   = num(r[r['اليومية'] !== undefined ? 'اليومية' : '5'] || r['مصروفات'] || 0);
+    const bal   = num(r['6'] || r['الرصيد'] || 0);
+    const party = String(r['7'] || r['جهة الصرف'] || '').trim();
+    const cc    = String(r['8'] || r['مركز التكلفة'] || '').trim();
+    const desc  = String(r['3'] || r['البند'] || '').trim();
 
-    // تجميع مراكز التكلفة
-    if (category && category !== '' && category !== 'غير محدد') {
-      if (!costCenters.has(category)) {
-        costCenters.set(category, { rev: 0, exp: 0 });
-      }
-      const cc = costCenters.get(category);
-      cc.rev += rev;
-      cc.exp += exp;
-    }
+    totRev += rev;
+    totExp += exp;
+    if (bal) lastBal = bal;
 
     if (exp > 0) {
-      if (party === 'عمل') workExp += exp;
-      expenses.push({ desc, amount: exp, category, source });
+      if (party === 'عمل')   workExp += exp;
+      if (party === 'شخصي') persExp += exp;
+      allExp.push({ desc, exp, cc });
     }
 
-    if (source && bal > 0) {
-      const currentBal = bankBalances.get(source) || 0;
-      bankBalances.set(source, Math.max(currentBal, bal));
-    }
-
-    if (date && date.length >= 8) {
-      if (!dailyMap.has(date)) dailyMap.set(date, { rev: 0, exp: 0 });
-      const d = dailyMap.get(date);
-      d.rev += rev;
-      d.exp += exp;
+    const key = date.split(' ')[0];
+    if (key && key.length >= 6) {
+      if (!dayMap[key]) dayMap[key] = {rev:0, exp:0};
+      dayMap[key].rev += rev;
+      dayMap[key].exp += exp;
     }
   });
 
-  // تحديث KPI
-  document.getElementById('balance').textContent = formatMoney(lastBal);
-  document.getElementById('revenue').textContent = formatMoney(totalRev);
-  document.getElementById('expenses').textContent = formatMoney(totalExp);
-  document.getElementById('projects').textContent = formatMoney(workExp);
+  allExp.sort((a,b) => b.exp - a.exp);
 
-  // رسم بياني
-  const dates = Array.from(dailyMap.keys()).sort();
-  const labels = dates.map(d => {
-    const parts = d.split(/[\/\-]/);
-    if (parts.length >= 3) {
-      return `${parts[2]}/${parts[1]}`;
-    }
-    return d;
-  });
-  const revs = dates.map(d => dailyMap.get(d).rev);
-  const exps = dates.map(d => dailyMap.get(d).exp);
-  
-  if (dates.length) {
-    document.getElementById('period').textContent = `${labels[0]} — ${labels[labels.length-1]}`;
+  // ── Bank rows ──
+  const banks = bank
+    .filter(r => {
+      const n = r['1'] || r['اسم البنك'] || '';
+      return n && String(n).trim() && String(n).trim() !== 'اسم البنك';
+    })
+    .map(r => ({
+      name: String(r['1'] || r['اسم البنك']).trim(),
+      bal:  num(r['4'] || r['الرصيد'] || 0),
+    }))
+    .filter(b => b.bal > 0);
+
+  // ── Cost center rows ──
+  const ccs = cost
+    .filter(r => {
+      const n = r['1'] || r['مركز التكلفة'] || '';
+      return n && String(n).trim() && String(n).trim() !== 'مركز التكلفة';
+    })
+    .map(r => ({
+      name: String(r['1'] || r['مركز التكلفة']).trim(),
+      rev:  num(r['2'] || r['اجمالي الايرادات'] || 0),
+      exp:  num(r['3'] || r['اجمالي السحب'] || 0),
+      bal:  num(r['4'] || r['الرصيد'] || 0),
+    }))
+    .filter(c => c.name && (c.rev||c.exp) && c.name !== 'مصروفات بنكية');
+
+  // ── If bank/cost empty (free plan), compute from daily ──
+  if (!banks.length) {
+    const bMap = {};
+    rows.forEach(r => {
+      const src   = String(r['9'] || r['المصدر / الجهة'] || '').trim();
+      const rev   = num(r['4'] || r['ايرادات'] || 0);
+      const exp   = num(r[r['اليومية'] !== undefined ? 'اليومية' : '5'] || r['مصروفات'] || 0);
+      if (!src) return;
+      if (!bMap[src]) bMap[src] = {rev:0, exp:0};
+      bMap[src].rev += rev;
+      bMap[src].exp += exp;
+    });
+    Object.entries(bMap).forEach(([name,v]) => {
+      const bal = v.rev - v.exp;
+      if (bal > 0) banks.push({name, bal});
+    });
+    banks.sort((a,b) => b.bal - a.bal);
   }
-  
+
+  if (!ccs.length) {
+    const cMap = {};
+    rows.forEach(r => {
+      const cc  = String(r['8'] || r['مركز التكلفة'] || '').trim();
+      const rev = num(r['4'] || r['ايرادات'] || 0);
+      const exp = num(r[r['اليومية'] !== undefined ? 'اليومية' : '5'] || r['مصروفات'] || 0);
+      if (!cc || cc === 'مصروفات بنكية') return;
+      if (!cMap[cc]) cMap[cc] = {rev:0, exp:0};
+      cMap[cc].rev += rev;
+      cMap[cc].exp += exp;
+    });
+    Object.entries(cMap).forEach(([name,v]) => ccs.push({name, rev:v.rev, exp:v.exp, bal:v.rev-v.exp}));
+    ccs.sort((a,b) => b.bal - a.bal);
+  }
+
+  // Render
+  document.getElementById('k-bal').textContent = fmt(lastBal);
+  document.getElementById('k-rev').textContent = fmt(totRev);
+  document.getElementById('k-exp').textContent = fmt(totExp);
+  document.getElementById('k-prj').textContent = fmt(workExp);
+
+  renderLine(dayMap);
+  renderBanks(banks);
+  renderCC(ccs);
+  renderDonut(workExp, persExp, totExp);
+  renderTop(allExp.slice(0,7));
+}
+
+// ── Render helpers ────────────────────────────────────────────────────────
+
+function renderLine(map) {
+  const sorted = Object.keys(map).sort();
+  const labels = sorted.map(d => { const p=d.split(/[-\/]/); return p.length>=3?`${p[2].replace(/^0/,'')}/${p[1].replace(/^0/,'')}`:d; });
+  const revs = sorted.map(d=>map[d].rev);
+  const exps = sorted.map(d=>map[d].exp);
+
+  if (sorted.length) document.getElementById('c-period').textContent = `${labels[0]} — ${labels[labels.length-1]}`;
+
   const ctx = document.getElementById('lineChart').getContext('2d');
-  if (chart) chart.destroy();
-  
-  chart = new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [
-        { label: 'إيرادات', data: revs, borderColor: '#10b981', backgroundColor: 'rgba(16,185,129,0.1)', tension: 0.3, fill: true, pointRadius: 3 },
-        { label: 'مصروفات', data: exps, borderColor: '#ef4444', backgroundColor: 'rgba(239,68,68,0.1)', tension: 0.3, fill: true, pointRadius: 3 }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: true,
-      plugins: {
-        legend: { labels: { color: '#e2e8f0', font: { family: 'Cairo', size: 12 } } },
-        tooltip: { 
-          callbacks: { 
-            label: (ctx) => {
-              const value = ctx.raw;
-              return `${ctx.dataset.label}: ${value.toLocaleString('en-US')} ج`;
-            }
-          }
-        }
+  if (lineInst) lineInst.destroy();
+  const gG = ctx.createLinearGradient(0,0,0,280); gG.addColorStop(0,'rgba(52,211,153,.2)'); gG.addColorStop(1,'rgba(52,211,153,0)');
+  const gR = ctx.createLinearGradient(0,0,0,280); gR.addColorStop(0,'rgba(248,113,113,.15)'); gR.addColorStop(1,'rgba(248,113,113,0)');
+
+  lineInst = new Chart(ctx, {
+    type:'line',
+    data:{labels, datasets:[
+      {label:'إيرادات',data:revs,borderColor:'#34d399',backgroundColor:gG,borderWidth:2,pointRadius:3,tension:.4,fill:true},
+      {label:'مصروفات',data:exps,borderColor:'#f87171',backgroundColor:gR,borderWidth:2,pointRadius:3,tension:.4,fill:true},
+    ]},
+    options:{
+      responsive:true, interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{position:'top',align:'end',labels:{boxWidth:10,boxHeight:10,font:{size:11},color:'#94a3b8'}},
+        tooltip:{backgroundColor:'#1a2236',borderColor:'rgba(99,179,237,.2)',borderWidth:1,padding:12,
+          callbacks:{label:c=>`  ${c.dataset.label}: ${fmt(c.parsed.y)} ج`}}
       },
-      scales: {
-        x: { 
-          ticks: { color: '#94a3b8', maxRotation: 45, font: { size: 10 } }, 
-          grid: { color: '#334155' } 
-        },
-        y: { 
-          ticks: { 
-            color: '#94a3b8', 
-            callback: (v) => {
-              if (v >= 1000000) return (v/1000000).toFixed(1) + 'M';
-              if (v >= 1000) return (v/1000).toFixed(0) + 'k';
-              return v.toLocaleString('en-US');
-            }
-          }, 
-          grid: { color: '#334155' } 
-        }
+      scales:{
+        x:{grid:{color:'rgba(255,255,255,.04)'},ticks:{font:{size:10},color:'#64748b',maxRotation:45}},
+        y:{grid:{color:'rgba(255,255,255,.04)'},ticks:{font:{size:10},color:'#64748b',callback:v=>v>=1000?(v/1000).toFixed(0)+'k':v}}
       }
     }
   });
-
-  // عرض البنوك والعهد
-  const bankArray = Array.from(bankBalances.entries())
-    .filter(([name]) => name && name !== 'null' && name !== 'undefined')
-    .sort((a, b) => b[1] - a[1]);
-  
-  document.getElementById('bankCount').textContent = `${bankArray.length} حسابات`;
-  
-  document.getElementById('banksList').innerHTML = bankArray.slice(0, 6).map(([name, bal]) => {
-    const icon = name.includes('بنك') ? '🏦' : (name.includes('كاش') ? '📱' : '💵');
-    return `<div class="bank-item">
-      <span class="bank-name">${icon} ${name}</span>
-      <span class="bank-balance" style="color:#3b82f6;">${formatMoney(bal)}</span>
-    </div>`;
-  }).join('') || '<div class="muted" style="padding:12px 0;">لا توجد حسابات</div>';
-
-  // عرض مراكز التكلفة
-  const ccArray = Array.from(costCenters.entries())
-    .filter(([name]) => name && name !== 'null' && name !== 'undefined' && name !== 'مصروفات بنكية')
-    .map(([name, data]) => ({
-      name,
-      rev: data.rev,
-      exp: data.exp,
-      net: data.rev - data.exp
-    }))
-    .filter(cc => cc.rev > 0 || cc.exp > 0)
-    .sort((a, b) => Math.abs(b.net) - Math.abs(a.net));
-  
-  document.getElementById('ccCount').textContent = `${ccArray.length} مشروع`;
-  
-  document.getElementById('ccList').innerHTML = ccArray.slice(0, 6).map(cc => {
-    const isPositive = cc.net >= 0;
-    const sign = isPositive ? '+' : '';
-    const colorClass = isPositive ? 'cc-positive' : 'cc-negative';
-    
-    return `<div class="cc-item">
-      <div class="cc-info">
-        <div class="cc-name">📁 ${cc.name}</div>
-        <div class="cc-details">إيرادات: ${formatMoney(cc.rev)} · مصروفات: ${formatMoney(cc.exp)}</div>
-      </div>
-      <div class="cc-balance ${colorClass}">${sign}${formatMoney(cc.net)}</div>
-    </div>`;
-  }).join('') || '<div class="muted" style="padding:12px 0;">لا توجد مراكز تكلفة</div>';
-
-  // أعلى المصروفات
-  const topExp = expenses
-    .filter(e => e.amount > 0)
-    .sort((a, b) => b.amount - a.amount)
-    .slice(0, 7);
-  
-  document.getElementById('topExpenses').innerHTML = topExp.map((e, i) => `
-    <div class="expense-item">
-      <div class="expense-info">
-        <div class="expense-desc">${i+1}. ${e.desc.substring(0, 40)}${e.desc.length > 40 ? '...' : ''}</div>
-        <div class="expense-cat">${e.category || 'غير محدد'} ${e.source ? '· ' + e.source : ''}</div>
-      </div>
-      <div class="expense-amount">${formatMoney(e.amount)}</div>
-    </div>
-  `).join('') || '<div class="muted" style="padding:12px 0;">لا توجد مصروفات</div>';
 }
 
-loadData();
-setInterval(loadData, 5 * 60 * 1000);
+const BC=['#38bdf8','#818cf8','#fb923c','#34d399','#f59e0b','#a78bfa','#64748b','#f87171'];
+const BI={'فودافون كاش':'📱','كاش':'💵','عهدة ابراهيم':'👤','عهدة لاسلام':'👤'};
+
+function renderBanks(banks) {
+  document.getElementById('b-count').textContent = `${banks.length} حسابات`;
+  const max = Math.max(...banks.map(b=>b.bal),1);
+  document.getElementById('banks').innerHTML = banks.map((b,i)=>{
+    const c=BC[i%BC.length], ic=BI[b.name]||'🏦', p=Math.max(2,Math.round(b.bal/max*100));
+    return `<div class="bank-item">
+      <div class="bank-info">
+        <div class="bank-icon" style="background:${c}18;color:${c}">${ic}</div>
+        <div><div class="bank-name">${b.name}</div><div class="bank-type">رصيد</div></div>
+      </div>
+      <div>
+        <div class="bank-balance-val" style="color:${c};text-align:left;font-size:13px;font-weight:700">${fmt(b.bal)}</div>
+        <div class="bank-bar-wrap"><div class="bank-bar-fill" style="width:${p}%;background:${c}"></div></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+const CC=['#38bdf8','#818cf8','#34d399','#f59e0b','#f87171','#fb923c','#a78bfa','#64748b'];
+
+function renderCC(ccs) {
+  document.getElementById('cc').innerHTML = ccs.map((c,i)=>{
+    const col=CC[i%CC.length], cls=c.bal>=0?'pos':'neg', sign=c.bal>=0?'+':'';
+    return `<div class="cc-item">
+      <div class="cc-left"><div class="cc-dot" style="background:${col}"></div><div class="cc-name">${c.name}</div></div>
+      <div class="cc-balance ${cls}">${sign}${fmt(c.bal)}</div>
+    </div>`;
+  }).join('');
+}
+
+function renderDonut(work,pers,total) {
+  const wp=total>0?((work/total)*100).toFixed(1):0;
+  const pp=total>0?((pers/total)*100).toFixed(1):0;
+  const ctx=document.getElementById('donutChart').getContext('2d');
+  if (donutInst) donutInst.destroy();
+  donutInst=new Chart(ctx,{
+    type:'doughnut',
+    data:{labels:['مشاريع','شخصي'],datasets:[{data:[work,pers],backgroundColor:['#818cf8','#38bdf8'],borderColor:'#131929',borderWidth:3,hoverOffset:6}]},
+    options:{cutout:'70%',plugins:{legend:{display:false},tooltip:{backgroundColor:'#1a2236',borderColor:'rgba(99,179,237,.2)',borderWidth:1,callbacks:{label:c=>`  ${c.label}: ${fmt(c.parsed)} ج`}}}}
+  });
+  document.getElementById('dleg').innerHTML=`
+    <div class="leg-item"><div class="leg-left"><div class="leg-dot" style="background:#818cf8"></div><div class="leg-name">مصروفات المشاريع</div></div><div class="leg-val">${wp}%</div></div>
+    <div class="leg-item"><div class="leg-left"><div class="leg-dot" style="background:#38bdf8"></div><div class="leg-name">مصروفات شخصية</div></div><div class="leg-val">${pp}%</div></div>
+    <div class="leg-item" style="margin-top:6px;padding-top:10px;border-top:1px solid rgba(255,255,255,.05)">
+      <div class="leg-left"><div class="leg-dot" style="background:#f59e0b"></div><div class="leg-name">الإجمالي</div></div>
+      <div class="leg-val" style="color:#f59e0b">${fmt(total)} ج</div>
+    </div>`;
+}
+
+function renderTop(top) {
+  document.getElementById('topexp').innerHTML=top.map((e,i)=>`
+    <div class="exp-item">
+      <div class="exp-rank">${i+1}</div>
+      <div class="exp-info"><div class="exp-name">${e.desc}</div><div class="exp-cat">${e.cc||'غير محدد'}</div></div>
+      <div class="exp-amt">${fmt(e.exp)}</div>
+    </div>`).join('');
+}
+
+loadAll();
+setInterval(loadAll, 5*60*1000);
 </script>
 </body>
 </html>
